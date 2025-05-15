@@ -260,6 +260,11 @@ class BotConfig:
 
     # remote
     remote_enable: bool = True  # 是否启用远程控制
+    
+    # Septangle自用
+    # Search
+    llm_search_judge: Dict[str, str] = field(default_factory=lambda: {})
+    tavily_search: Dict[str, str] = field(default_factory=lambda: {})
 
     # experimental
     enable_friend_chat: bool = False  # 是否启用好友聊天
@@ -630,6 +635,11 @@ class BotConfig:
             if config.INNER_VERSION in SpecifierSet(">=1.1.0"):
                 config.enable_pfc_chatting = experimental_config.get("pfc_chatting", config.enable_pfc_chatting)
 
+        def tavily_search(parent: dict): 
+            tavily_search_config = parent['tavily_search']
+            config.tavily_search['enable'] = tavily_search_config.get('enable', False)
+            config.tavily_search['search_probability'] = tavily_search_config.get("search_probability", 0.7)
+            config.tavily_search['max_search_results'] = tavily_search_config.get("max_search_results", 3)
         # 版本表达式：>=1.0.0,<2.0.0
         # 允许字段：func: method, support: str, notice: str, necessary: bool
         # 如果使用 notice 字段，在该组配置加载时，会展示该字段对用户的警示
@@ -661,6 +671,7 @@ class BotConfig:
             "chat": {"func": chat, "support": ">=1.6.0", "necessary": False},
             "normal_chat": {"func": normal_chat, "support": ">=1.6.0", "necessary": False},
             "focus_chat": {"func": focus_chat, "support": ">=1.6.0", "necessary": False},
+            "tavily_search" : {"func": tavily_search, "support": ">=0.0.1", "necessary": False}
         }
 
         # 原地修改，将 字符串版本表达式 转换成 版本对象
