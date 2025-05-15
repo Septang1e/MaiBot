@@ -4,7 +4,8 @@ from typing import Dict, List, Optional, Tuple
 import os
 import re
 
-from src.tavily_search.search_manager import TavilyClient
+from tavily import TavilyClient
+
 from src.chat.models.utils_model import LLMRequest
 from src.config.config import global_config
 from src.common.logger import get_module_logger, LogConfig, LLM_STYLE_CONFIG
