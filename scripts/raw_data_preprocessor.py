@@ -1,27 +1,18 @@
-import json
 import os
 from pathlib import Path
 import sys  # 新增系统模块导入
+from src.chat.knowledge.utils.hash import get_sha256
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from src.common.logger import get_module_logger
+from src.common.logger import get_logger
 
-logger = get_module_logger("LPMM数据库-原始数据处理")
-
-# 添加项目根目录到 sys.path
-
-
-def check_and_create_dirs():
-    """检查并创建必要的目录"""
-    required_dirs = ["data/lpmm_raw_data", "data/imported_lpmm_data"]
-
-    for dir_path in required_dirs:
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-            logger.info(f"已创建目录: {dir_path}")
+logger = get_logger("lpmm")
+ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RAW_DATA_PATH = os.path.join(ROOT_PATH, "data/lpmm_raw_data")
+# IMPORTED_DATA_PATH = os.path.join(ROOT_PATH, "data/imported_lpmm_data")
 
 
-def process_text_file(file_path):
+def _process_text_file(file_path):
     """处理单个文本文件，返回段落列表"""
     with open(file_path, "r", encoding="utf-8") as f:
         raw = f.read()
@@ -42,51 +33,46 @@ def process_text_file(file_path):
     return paragraphs
 
 
-def main():
-    # 新增用户确认提示
-    print("=== 重要操作确认 ===")
-    print("如果你并非第一次导入知识")
-    print("请先删除data/import.json文件，备份data/openie.json文件")
-    print("在进行知识库导入之前")
-    print("请修改config/lpmm_config.toml中的配置项")
-    confirm = input("确认继续执行？(y/n): ").strip().lower()
-    if confirm != "y":
-        logger.error("操作已取消")
-        sys.exit(1)
-    print("\n" + "=" * 40 + "\n")
-
-    # 检查并创建必要的目录
-    check_and_create_dirs()
-
-    # 检查输出文件是否存在
-    if os.path.exists("data/import.json"):
-        logger.error("错误: data/import.json 已存在，请先处理或删除该文件")
-        sys.exit(1)
-
-    if os.path.exists("data/openie.json"):
-        logger.error("错误: data/openie.json 已存在，请先处理或删除该文件")
-        sys.exit(1)
-
-    # 获取所有原始文本文件
-    raw_files = list(Path("data/lpmm_raw_data").glob("*.txt"))
+def _process_multi_files() -> list:
+    raw_files = list(Path(RAW_DATA_PATH).glob("*.txt"))
     if not raw_files:
         logger.warning("警告: data/lpmm_raw_data 中没有找到任何 .txt 文件")
         sys.exit(1)
-
     # 处理所有文件
     all_paragraphs = []
     for file in raw_files:
         logger.info(f"正在处理文件: {file.name}")
-        paragraphs = process_text_file(file)
+        paragraphs = _process_text_file(file)
         all_paragraphs.extend(paragraphs)
-
-    # 保存合并后的结果
-    output_path = "data/import.json"
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(all_paragraphs, f, ensure_ascii=False, indent=4)
-
-    logger.info(f"处理完成，结果已保存到: {output_path}")
+    return all_paragraphs
 
 
-if __name__ == "__main__":
-    main()
+def load_raw_data() -> tuple[list[str], list[str]]:
+    """加载原始数据文件
+
+    读取原始数据文件，将原始数据加载到内存中
+
+    Args:
+        path: 可选，指定要读取的json文件绝对路径
+
+    Returns:
+        - raw_data: 原始数据列表
+        - sha256_list: 原始数据的SHA256集合
+    """
+    raw_data = _process_multi_files()
+    sha256_list = []
+    sha256_set = set()
+    for item in raw_data:
+        if not isinstance(item, str):
+            logger.warning(f"数据类型错误：{item}")
+            continue
+        pg_hash = get_sha256(item)
+        if pg_hash in sha256_set:
+            logger.warning(f"重复数据：{item}")
+            continue
+        sha256_set.add(pg_hash)
+        sha256_list.append(pg_hash)
+        raw_data.append(item)
+    logger.info(f"共读取到{len(raw_data)}条数据")
+
+    return sha256_list, raw_data

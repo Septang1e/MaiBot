@@ -1,7 +1,11 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.middleware.cors import CORSMiddleware  # 新增导入
 from typing import Optional
 from uvicorn import Config, Server as UvicornServer
 import os
+from rich.traceback import install
+
+install(extra_lines=3)
 
 
 class Server:
@@ -11,6 +15,21 @@ class Server:
         self._port: int = 8080
         self._server: Optional[UvicornServer] = None
         self.set_address(host, port)
+
+        # 配置 CORS
+        origins = [
+            "http://localhost:3000",  # 允许的前端源
+            "http://127.0.0.1:3000",
+            # 在生产环境中，您应该添加实际的前端域名
+        ]
+
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,  # 是否支持 cookie
+            allow_methods=["*"],  # 允许所有 HTTP 方法
+            allow_headers=["*"],  # 允许所有 HTTP 请求头
+        )
 
     def register_router(self, router: APIRouter, prefix: str = ""):
         """注册路由
@@ -71,4 +90,12 @@ class Server:
         return self.app
 
 
-global_server = Server(host=os.environ["HOST"], port=int(os.environ["PORT"]))
+global_server = None
+
+
+def get_global_server() -> Server:
+    """获取全局服务器实例"""
+    global global_server
+    if global_server is None:
+        global_server = Server(host=os.environ["HOST"], port=int(os.environ["PORT"]))
+    return global_server
