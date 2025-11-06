@@ -450,6 +450,20 @@ def api_ada_load_config(config_path: str) -> APIAdapterConfig:
         logger.critical("API适配器配置文件解析失败")
         raise e
 
+def reload_global_config():
+    """重新加载 bot_config.toml"""
+    global global_config
+    config_path = os.path.join(CONFIG_DIR, "bot_config.toml")
+    global_config = load_config(config_path)
+    logger.info("[配置] 已动态重新加载 bot_config.toml")
+
+def reload_model_config():
+    """重新加载 model_config.toml"""
+    global model_config
+    config_path = os.path.join(CONFIG_DIR, "model_config.toml")
+    model_config = api_ada_load_config(config_path)
+    logger.info("[配置] 已动态重新加载 model_config.toml")
+
 
 # 获取配置文件路径
 logger.info(f"MaiCore当前版本: {MMC_VERSION}")
